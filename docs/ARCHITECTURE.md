@@ -41,15 +41,16 @@ box works with none.
 
 ## Status
 
-| Piece                                 | Milestone | State       |
-| ------------------------------------- | --------- | ----------- |
-| Static `/field` shell, `ensureStatic` | M0        | Done        |
-| Clerk, `proxy.ts`, role checks        | M0        | Done        |
-| Postgres schema and first migration   | M0        | Done        |
-| Dexie, inspections, answers, Serwist  | M1        | Done        |
-| Outbox, push, pull, HLC               | M2        | Done        |
-| Photos                                | M3        | Done        |
-| Dashboard                             | M4        | Not started |
+| Piece                                 | Milestone | State |
+| ------------------------------------- | --------- | ----- |
+| Static `/field` shell, `ensureStatic` | M0        | Done  |
+| Clerk, `proxy.ts`, role checks        | M0        | Done  |
+| Postgres schema and first migration   | M0        | Done  |
+| Dexie, inspections, answers, Serwist  | M1        | Done  |
+| Outbox, push, pull, HLC               | M2        | Done  |
+| Photos                                | M3        | Done  |
+| Dashboard                             | M4        | Done  |
+| Chaos panel, seed data, a11y pass     | M5        | Done  |
 
 ## Why /field is one static route
 
@@ -114,6 +115,33 @@ SHA-256 of its compressed bytes; the photo follows when bandwidth allows.
 6. **Keep** the local copy until it is uploaded and its inspection is closed, or for 30 days.
 
 The store is private: `GET /api/photos/<hash>` streams a photo to its inspector or a supervisor.
+
+## The supervisor dashboard
+
+`/dashboard` is online-only and server-rendered. Every page re-checks the supervisor role
+(`requireSupervisor()`) and reads Postgres through `server/dashboard/queries.ts`.
+
+- **Overview** (`app/dashboard/page.tsx`): open critical findings first, then inspections newest
+  first with site, checklist, inspector, status, critical badge and last sync time. Filters
+  (status, site, checklist, date range) live in the URL.
+- **Inspection detail** (`app/dashboard/inspections/[id]/page.tsx`): every section with the current
+  answer from the same reducer the device uses, each item's full history (device time, server time,
+  device, author), conflict flags, photos in a lightbox, and "Photo pending upload from device"
+  for a photo the device has not uploaded yet.
+- **Actions** (`app/dashboard/actions.ts`): cancel an inspection (reason required) and close a
+  corrective action (note required). Server Actions, validated with Zod, re-checking the role, and
+  bumping `server_seq` under the advisory lock so devices learn of the change on their next pull.
+- **Names** come from Clerk at render time; the database stores only user ids.
+- **Times** are rendered in the viewer's locale and time zone by a small client component.
+- A client component calls `router.refresh()` every 15 seconds while visible.
+
+## Demo chaos panel
+
+`components/field/chaos-panel.tsx`, shown with `?demo=1` or `NEXT_PUBLIC_DEMO_MODE=true`. Its
+settings live in Dexie `meta` and act in exactly two places: the one fetch wrapper
+(`throughChaos()` in `lib/sync/api.ts`: force offline, latency, drop rate) and the device clock
+(`lib/sync/clock.ts`: skew, which also feeds the HLC). A live table shows the outbox and photo
+queue; buttons sync now, export local data as JSON, and wipe the device database.
 
 ## Service worker strategy
 

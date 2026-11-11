@@ -87,6 +87,7 @@ export async function openInspection(page: Page, site: string) {
 /** Opens an inspection on the dashboard by its site. */
 export async function openOnDashboard(page: Page, site: string) {
   await page.goto('/dashboard');
-  await page.getByRole('link', { name: site }).first().click();
+  const href = await page.getByRole('link', { name: site }).first().getAttribute('href');
+  await page.goto(href!);
   await expect(page.getByRole('heading', { name: site, level: 1 })).toBeVisible();
 }

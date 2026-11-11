@@ -8,6 +8,7 @@ import { fieldHref, navigate, useFieldRoute } from '@/lib/field/navigation';
 import { photoQueueTask } from '@/lib/photos/upload-queue';
 import { clockLooksWrong, syncEngine } from '@/lib/sync/engine';
 import { buttonClass } from '@/components/ui/button';
+import { ChaosPanel, DemoBadge } from './chaos-panel';
 import { ClerkBridge } from './clerk-bridge';
 import { FieldAppLoading } from './field-app-loading';
 import { useLastUser, useSyncStatus } from './hooks';
@@ -77,6 +78,7 @@ function FieldShell({ user }: { user: LastUser }) {
             Inspections
           </a>
           <div className="flex items-center gap-2">
+            <DemoBadge />
             <SyncBadge />
             <a
               href={fieldHref({ view: 'settings' })}
@@ -85,9 +87,10 @@ function FieldShell({ user }: { user: LastUser }) {
                 navigate({ view: 'settings' });
               }}
               className="border-border inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border-2 px-3 text-sm font-semibold"
-              aria-label={`Settings for ${user.displayName}`}
             >
-              {initials(user.displayName)}
+              {/* The accessible name is the hidden text; the initials are decoration. */}
+              <span aria-hidden="true">{initials(user.displayName)}</span>
+              <span className="sr-only">Settings for {user.displayName}</span>
             </a>
           </div>
         </div>
@@ -102,6 +105,9 @@ function FieldShell({ user }: { user: LastUser }) {
         </p>
       )}
       <ClockNotice />
+      <div className="px-4">
+        <ChaosPanel />
+      </div>
       <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col px-4 pt-4 pb-32">
         {route.view === 'new' ? (
           <NewInspectionView user={user} />

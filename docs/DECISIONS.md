@@ -352,3 +352,28 @@ open.
 
 **Consequences.** No public URL ever exists for a photo. Photo views cost a function invocation,
 acceptable for a dashboard.
+
+## 23. Dashboard
+
+- **Names at render time.** The database keeps only Clerk user ids (the brief's minimal personal
+  data); the dashboard asks Clerk for display names when it renders and falls back to the id if
+  Clerk is unreachable.
+- **Times in the viewer's zone.** Server Components would format times in the server's zone, so a
+  small client component (`components/ui/local-time.tsx`) renders UTC on the server and the
+  viewer's local time after hydration, using `useSyncExternalStore` to avoid a hydration mismatch.
+- **Cancel** is allowed for drafts and submitted inspections. There is no "close inspection"
+  action: the brief lists only cancel and close-corrective-action; `closed` stays in the model.
+- **Next 16 keeps the previous route mounted (hidden) for instant back navigation.** Tests target
+  elements by test id or visibility rather than by text alone.
+
+## 24. Demo
+
+- **Shared test accounts.** The live demo runs on the Clerk development instance, so the two users
+  have `+clerk_test` addresses: anyone can sign in with the code `424242`, and no real email is
+  involved. This is what lets a stranger try the demo in a minute; the README says data may be
+  reset. A production instance with real sign-up would need a way to grant roles.
+- **Seed through push.** `pnpm db:seed` creates the past inspection with the real push code and
+  fixed ids, so it passes every server check, raises its corrective action the same way device
+  data does, and is idempotent. `SEED_INSPECTOR_USER_ID` (seed-only) chooses its owner.
+- **`@axe-core/playwright`** (added, outside the original stack) runs the accessibility pass in
+  the existing Playwright suite; the brief's acceptance asks for no serious axe violations.

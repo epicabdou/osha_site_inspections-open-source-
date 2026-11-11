@@ -3,13 +3,14 @@
 **An open-source, offline-first safety inspection app that shows device-to-server sync done
 correctly, and explains how.**
 
-**Live demo:** _not deployed yet_ · **Docs:** [Architecture](docs/ARCHITECTURE.md) ·
-[Sync](docs/SYNC.md) · [Decisions](docs/DECISIONS.md) · [Testing](docs/TESTING.md)
+**Live demo:** _link added once the production deployment is public_ · **Docs:** [Architecture](docs/ARCHITECTURE.md) ·
+[Sync](docs/SYNC.md) · [Decisions](docs/DECISIONS.md) · [Testing](docs/TESTING.md) ·
+[Demo script](docs/DEMO_SCRIPT.md)
 
 <!-- GIF placeholder: two browser windows side by side, one forced offline, an inspection
      completed offline, then both reconciling when it reconnects. Recorded from docs/DEMO_SCRIPT.md. -->
 
-> _Demo GIF coming in milestone M5._
+> _Demo GIF to be recorded from [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md)._
 
 ## The story
 
@@ -21,24 +22,45 @@ correctly, even if a supervisor changed the same inspection in the meantime.
 
 Built in six milestones, each reviewed before the next starts.
 
-| Milestone | Scope                                                                       | State       |
-| --------- | --------------------------------------------------------------------------- | ----------- |
-| M0        | Foundation: tooling, CI, Clerk + `proxy.ts`, Postgres schema, static /field | Done        |
-| M1        | Offline field app: Dexie, inspections, answers, critical flags, PWA         | Done        |
-| M2        | Sync: outbox, push, pull, HLC, idempotency, rejections                      | Done        |
-| M3        | Photos: compression, hashing, upload queue                                  | Done        |
-| M4        | Supervisor dashboard: history, conflicts, corrective actions                | Not started |
-| M5        | Demo: chaos panel, seed data, accessibility pass, demo script               | Not started |
+| Milestone | Scope                                                                       | State |
+| --------- | --------------------------------------------------------------------------- | ----- |
+| M0        | Foundation: tooling, CI, Clerk + `proxy.ts`, Postgres schema, static /field | Done  |
+| M1        | Offline field app: Dexie, inspections, answers, critical flags, PWA         | Done  |
+| M2        | Sync: outbox, push, pull, HLC, idempotency, rejections                      | Done  |
+| M3        | Photos: compression, hashing, upload queue                                  | Done  |
+| M4        | Supervisor dashboard: history, conflicts, corrective actions                | Done  |
+| M5        | Demo: chaos panel, seed data, accessibility pass, demo script               | Done  |
 
 ## Try it in 60 seconds
 
-_Arrives with the live deployment in M5._ The plan: open the demo with `?demo=1`, sign in as the
-demo inspector, force the network offline from the chaos panel, complete an inspection with a
-failing critical item, then go back online and watch it sync to the supervisor dashboard.
+The public demo uses two shared test accounts. They are Clerk test addresses: no email is sent,
+and the code is always **424242**. Anyone can use them, so data may be reset at any time.
+
+| Role       | Email                               | Code     |
+| ---------- | ----------------------------------- | -------- |
+| Inspector  | `inspector+clerk_test@example.com`  | `424242` |
+| Supervisor | `supervisor+clerk_test@example.com` | `424242` |
+
+1. Open the demo at `/field?demo=1` and sign in as the **inspector**. Wait for **All synced**.
+2. Open **Demo controls** and tick **Force offline**. The badge says **Offline**.
+3. **Start an inspection**: any site, _Scaffold pre-use inspection_. Answer a few items. Each one
+   says **Saved on device**, and the badge counts what is waiting.
+4. Go to **Platform and edges** and enter a guardrail height of **820** mm. A red banner appears at
+   once: a critical item failed, and the device knows without asking the server.
+5. Untick **Force offline**. The queue drains on its own and the badge returns to **All synced**.
+6. In another browser (or a private window), open `/dashboard` and sign in as the **supervisor**.
+   Your inspection is there, with a new open critical finding at the top. Open it to see each
+   answer's full history, device time next to server time.
+
+### The two-device demo
+
+Put two browser profiles side by side. Sign both in as the inspector, start an inspection on one,
+and let the other pull it. Force **both** offline, answer the same item differently on each, then
+bring both back online. Both devices and the dashboard flag **Conflicting answers** and keep both
+entries in the history; the most recent answer by hybrid logical clock is current. Try the same
+with **Clock skew** set to +2 h on one device: the order stays correct.
 
 ## Features
-
-Planned for the MVP (see [Status](#status) for what exists today):
 
 - **Works with no signal.** The inspector's app is one prerendered page served by a service worker;
   every answer is saved on the device the moment it is given.
@@ -52,6 +74,11 @@ Planned for the MVP (see [Status](#status) for what exists today):
   device, uploaded directly to storage.
 - **Honest rejections.** If a supervisor cancels an inspection while the inspector is offline, later
   answers are rejected with a reason, kept visible on the device, and exportable.
+- **A supervisor dashboard** with open findings first, URL filters, per-item history, conflict
+  flags, photos in a lightbox, and the two supervisor actions: cancel an inspection, close a
+  corrective action.
+- **A chaos panel** (`?demo=1`) to force the device offline, add latency, drop requests and skew the
+  clock, with a live view of the outbox and photo queue.
 
 ## Architecture
 
@@ -74,8 +101,8 @@ reasons behind them: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 ## Stack
 
 Next.js 16 (App Router, Cache Components) · React 19 · TypeScript (strict) · Tailwind CSS 4 ·
-Clerk · Postgres (Neon) + Drizzle ORM · Dexie (M1) · Serwist (M1) · Vercel Blob (M3) · Zod ·
-Vitest, fast-check, PGlite, Playwright · GitHub Actions · Vercel.
+Radix UI · Clerk · Postgres (Neon) + Drizzle ORM · Dexie · Serwist · Vercel Blob (private) · Zod ·
+Vitest, fast-check, PGlite, Playwright, axe · GitHub Actions · Vercel.
 Where versions differ from the original brief, [docs/DECISIONS.md](docs/DECISIONS.md#9-versions)
 says why.
 
@@ -132,7 +159,9 @@ pnpm db:migrate
 applies the committed migrations in `server/db/migrations` to `DATABASE_URL` (or
 `DATABASE_URL_UNPOOLED` when set). After changing
 `server/db/schema.ts`, run `pnpm db:generate` and commit the new migration; CI fails if they
-drift apart. Then publish the demo checklists (idempotent; published versions never change):
+drift apart. Then publish the demo checklists and one past inspection (idempotent; published
+versions never change). Set `SEED_INSPECTOR_USER_ID` to the demo inspector's Clerk user id so the
+seeded inspection also appears on that inspector's devices:
 
 ```bash
 pnpm db:seed
@@ -194,6 +223,11 @@ every check except end-to-end.
 - **Sign in once online.** Clerk's browser script loads from Clerk's servers, so the first sign-in
   on a device needs a connection.
 - **One tenant, two roles.** No organisations or multi-tenancy, by design.
+- **Shared demo accounts.** The public demo runs on a Clerk development instance with two shared
+  test users. New sign-ups get no role and cannot record or view inspections.
+- **No "close inspection" action.** The `closed` status exists in the data model (and is honoured
+  by sync), but the dashboard only cancels inspections and closes corrective actions, as briefed.
+- **Photos are JPEG only**, at most 1600 px on the long side, after compression on the device.
 
 ## Disclaimer
 
