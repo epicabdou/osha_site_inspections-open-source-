@@ -1,2 +1,5 @@
-# Auto detect text files and perform LF normalization
-* text=auto
+# Normalise line endings to LF everywhere, matching Prettier and the Linux CI runners.
+* text=auto eol=lf
+*.ico binary
+*.png binary
+*.jpg binary

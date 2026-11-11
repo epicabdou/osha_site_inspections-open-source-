@@ -1,0 +1,72 @@
+# Testing
+
+The tests are part of the portfolio. The aim is that a reviewer can read them to learn what the
+system guarantees, then run them to see it hold.
+
+## Layers
+
+| Layer    | Tool                                   | Location         | Command              |
+| -------- | -------------------------------------- | ---------------- | -------------------- |
+| Unit     | Vitest (+ `fake-indexeddb` from M1)    | `tests/unit`     | `pnpm test:unit`     |
+| Property | Vitest + fast-check                    | `tests/property` | `pnpm test:property` |
+| Server   | Vitest + PGlite running the migrations | `tests/server`   | `pnpm test:server`   |
+| E2E      | Playwright + `@clerk/testing`          | `tests/e2e`      | `pnpm test:e2e`      |
+
+`pnpm test` runs unit, property and server tests together; `pnpm test:coverage` adds a coverage
+report in `coverage/`. From M2, CI requires at least 90% line coverage on `lib/sync` and
+`lib/answers`.
+
+### Server tests
+
+`tests/server/helpers/pglite.ts` starts an in-memory Postgres (PGlite) and applies the committed
+Drizzle migrations from `server/db/migrations`, so server tests run against exactly the schema
+production gets. No database server or `DATABASE_URL` is needed.
+
+### End-to-end tests
+
+Playwright runs against a production build (`next build` + `next start` on port 3100) in Chromium
+and WebKit, so the prerendered `/field` page (and, from M1, the service worker) behave as in
+production. Locally, `pnpm test:e2e` builds first and reuses a server already running on that port.
+
+The app needs real Clerk keys to serve any page that passes through `proxy.ts`, so E2E tests need
+`.env.local` with `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY`. Sign-in tests also
+need `E2E_INSPECTOR_EMAIL` and `E2E_SUPERVISOR_EMAIL` (see README, "Test users"); they are skipped
+when those are missing. Playwright signs users in with Clerk testing tokens, so no passwords are
+stored anywhere.
+
+First run only:
+
+```bash
+pnpm exec playwright install chromium webkit
+```
+
+On failure, traces and screenshots are kept in `test-results/`; open one with
+`pnpm exec playwright show-trace <path-to-trace.zip>`. CI uploads them as an artifact.
+
+## What exists today (M0)
+
+| Test                              | What it shows                                                                 |
+| --------------------------------- | ----------------------------------------------------------------------------- |
+| `unit/schemas.test.ts`            | Template, inspection and answer schemas accept and reject what they should.   |
+| `unit/roles.test.ts`              | Roles are read only from `metadata.role` in the session claims.               |
+| `unit/proxy-matcher.test.ts`      | Clerk runs on `/dashboard` and `/api`, and never on `/field` or static files. |
+| `property/roles.property.test.ts` | For any input, no value other than the two roles is ever granted a role.      |
+| `server/migrations.test.ts`       | The migration creates every table; one sequence orders all synced tables.     |
+| `e2e/smoke.spec.ts`               | `/field` is served from its static shell with no redirect; disclaimer shown.  |
+| `e2e/auth.spec.ts`                | Both test users sign in; only the supervisor reaches the dashboard.           |
+
+Build-time checks complement the tests: `ensureStatic = 'navigation'` on `/field` and
+`scripts/check-static-routes.mjs` (run as `postbuild`) both fail the build if `/field` stops being
+fully static.
+
+## Property tests
+
+Property tests state a rule and let fast-check search for a counterexample among many generated
+inputs. When one fails, fast-check shrinks it to a minimal case and prints the seed to replay it.
+
+| Property                                                               | Milestone |
+| ---------------------------------------------------------------------- | --------- |
+| Role parsing never grants a role outside `inspector` / `supervisor`    | M0        |
+| Any order of the same set of events gives the same current answers     | M2        |
+| Applying the same pull page twice leaves the device database unchanged | M2        |
+| Processing the same push batch twice leaves Postgres unchanged         | M2        |

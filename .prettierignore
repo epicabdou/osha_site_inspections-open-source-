@@ -1,0 +1,11 @@
+.next
+out
+build
+coverage
+playwright-report
+test-results
+node_modules
+pnpm-lock.yaml
+public/sw.js
+server/db/migrations/meta
+AGENTS.md

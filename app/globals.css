@@ -1,0 +1,63 @@
+@import 'tailwindcss';
+
+/*
+ * High-contrast palette for outdoor light. Colours are tokens so every
+ * component uses the same values in light and dark mode.
+ */
+:root {
+  --background: #ffffff;
+  --foreground: #0b0f14;
+  --muted: #4a5563;
+  --surface: #f2f4f7;
+  --border: #9aa4b2;
+  --accent: #0b5cad;
+  --accent-foreground: #ffffff;
+  --danger: #b42318;
+  --danger-surface: #fef3f2;
+  --ok: #067647;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0b0f14;
+    --foreground: #f5f7fa;
+    --muted: #b6bfcb;
+    --surface: #18202b;
+    --border: #5d6b7c;
+    --accent: #6cb4ff;
+    --accent-foreground: #0b0f14;
+    --danger: #ff8a80;
+    --danger-surface: #3a1512;
+    --ok: #6ce9a6;
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-surface: var(--surface);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-danger: var(--danger);
+  --color-danger-surface: var(--danger-surface);
+  --color-ok: var(--ok);
+  --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+}
+
+/* Visible focus for keyboard users everywhere. */
+:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
