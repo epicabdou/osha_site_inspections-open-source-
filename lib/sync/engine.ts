@@ -48,6 +48,10 @@ export const CLOCK_WARNING_MS = 5 * 60_000;
 
 type AfterCycleTask = (database: FieldDatabase) => Promise<void>;
 
+/**
+ * Runs sync cycles for one device database. The app uses the `syncEngine` singleton;
+ * tests create their own instances to simulate several devices.
+ */
 export class SyncEngine {
   private snapshot: SyncSnapshot = { phase: 'idle' };
   private readonly listeners = new Set<() => void>();

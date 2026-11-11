@@ -8,6 +8,7 @@ import {
   waitForServiceWorker,
 } from './helpers/field';
 import { e2eQuery } from './helpers/db';
+import { newSupervisor, openOnDashboard } from './helpers/devices';
 import { withGpsExif } from './helpers/jpeg';
 
 /**
@@ -21,6 +22,7 @@ test.describe('offline inspection', () => {
   test('complete an inspection with no network and keep it across reloads', async ({
     page,
     context,
+    browser,
   }) => {
     const users = testUsers()!;
     await signInToField(page, users.inspector);
@@ -74,6 +76,15 @@ test.describe('offline inspection', () => {
       [site],
     );
     expect(Number(photos[0]?.count)).toBe(1);
+
+    // The supervisor sees it on the dashboard, photo included.
+    const supervisor = await newSupervisor(browser, users.supervisor);
+    await openOnDashboard(supervisor.page, site);
+    await expect(supervisor.page.getByTestId('inspection-status')).toHaveText('Submitted');
+    const photoItem = supervisor.page.getByTestId('dashboard-item-area-photo');
+    await expect(photoItem.getByRole('button', { name: /Open photo 1/ })).toBeVisible();
+    await expect(photoItem.getByTestId('photo-pending')).toHaveCount(0);
+    await supervisor.context.close();
   });
 
   test('the app is installable: manifest and service worker are in place', async ({ page }) => {
