@@ -5,11 +5,11 @@ import { useEffect } from 'react';
 import type { LastUser } from '@/lib/db';
 import { loadDemoSettings } from '@/lib/demo/settings';
 import { fieldHref, navigate, useFieldRoute } from '@/lib/field/navigation';
-import { syncEngine } from '@/lib/sync/engine';
+import { clockLooksWrong, syncEngine } from '@/lib/sync/engine';
 import { buttonClass } from '@/components/ui/button';
 import { ClerkBridge } from './clerk-bridge';
 import { FieldAppLoading } from './field-app-loading';
-import { useLastUser } from './hooks';
+import { useLastUser, useSyncStatus } from './hooks';
 import { HomeView } from './home-view';
 import { InspectionView } from './inspection-view';
 import { NewInspectionView } from './new-inspection-view';
@@ -99,6 +99,7 @@ function FieldShell({ user }: { user: LastUser }) {
           .
         </p>
       )}
+      <ClockNotice />
       <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col px-4 pt-4 pb-32">
         {route.view === 'new' ? (
           <NewInspectionView user={user} />
@@ -111,6 +112,23 @@ function FieldShell({ user }: { user: LastUser }) {
         )}
       </main>
     </div>
+  );
+}
+
+/** A quiet notice when the device clock is more than 5 minutes from the server's. */
+function ClockNotice() {
+  const { clockOffsetMs } = useSyncStatus();
+  if (!clockLooksWrong(clockOffsetMs)) return null;
+  const minutes = Math.round(Math.abs(clockOffsetMs!) / 60_000);
+  const amount = minutes >= 90 ? `${Math.round(minutes / 60)} hours` : `${minutes} minutes`;
+  return (
+    <p
+      className="text-muted border-border border-b px-4 py-2 text-center text-sm"
+      data-testid="clock-notice"
+    >
+      This device&apos;s clock looks wrong (about {amount} {clockOffsetMs! > 0 ? 'ahead' : 'behind'}
+      ). Your answers still sync in the right order.
+    </p>
   );
 }
 

@@ -20,6 +20,11 @@ export default defineConfig({
       include: ['lib/**', 'server/**'],
       exclude: ['server/db/migrations/**', '**/*.d.ts'],
       reporter: ['text', 'html', 'lcov'],
+      // The sync engine and the answer reducer are the heart of the project.
+      thresholds: {
+        'lib/sync/**': { lines: 90 },
+        'lib/answers/**': { lines: 90 },
+      },
     },
     projects: [
       {
@@ -47,6 +52,7 @@ export default defineConfig({
           name: 'server',
           include: ['tests/server/**/*.test.ts'],
           environment: 'node',
+          setupFiles: ['tests/setup/fake-indexeddb.ts'],
           // Each file boots its own in-memory Postgres (PGlite); give it time.
           testTimeout: 30_000,
           hookTimeout: 60_000,

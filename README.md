@@ -25,7 +25,7 @@ Built in six milestones, each reviewed before the next starts.
 | --------- | --------------------------------------------------------------------------- | ----------- |
 | M0        | Foundation: tooling, CI, Clerk + `proxy.ts`, Postgres schema, static /field | Done        |
 | M1        | Offline field app: Dexie, inspections, answers, critical flags, PWA         | Done        |
-| M2        | Sync: outbox, push, pull, HLC, idempotency, rejections                      | Not started |
+| M2        | Sync: outbox, push, pull, HLC, idempotency, rejections                      | Done        |
 | M3        | Photos: compression, hashing, upload queue                                  | Not started |
 | M4        | Supervisor dashboard: history, conflicts, corrective actions                | Not started |
 | M5        | Demo: chaos panel, seed data, accessibility pass, demo script               | Not started |

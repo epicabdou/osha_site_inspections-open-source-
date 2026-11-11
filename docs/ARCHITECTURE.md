@@ -47,7 +47,7 @@ box works with none.
 | Clerk, `proxy.ts`, role checks        | M0        | Done        |
 | Postgres schema and first migration   | M0        | Done        |
 | Dexie, inspections, answers, Serwist  | M1        | Done        |
-| Outbox, push, pull, HLC               | M2        | Not started |
+| Outbox, push, pull, HLC               | M2        | Done        |
 | Photos                                | M3        | Not started |
 | Dashboard                             | M4        | Not started |
 

@@ -13,7 +13,9 @@ function mergeInspection(
   server: PullResponse['changes']['inspections'][number],
 ): LocalInspection {
   const keepLocalSubmit = local?.status === 'submitted' && server.status === 'draft';
-  const { rejectReason: _accepted, ...localFields } = local ?? {};
+  // A rejection stays visible until the user exports or dismisses it.
+  const keepRejection = local?.syncState === 'rejected';
+  const { rejectReason, ...localFields } = local ?? {};
   return {
     ...localFields,
     ...server,
@@ -21,7 +23,8 @@ function mergeInspection(
     submittedAtDevice: keepLocalSubmit ? local.submittedAtDevice : server.submittedAtDevice,
     hasCriticalFailure: Boolean(local?.hasCriticalFailure) || server.hasCriticalFailure,
     updatedAt: local?.updatedAt ?? server.createdAtDevice,
-    syncState: keepLocalSubmit ? local.syncState : 'synced',
+    syncState: keepRejection ? 'rejected' : keepLocalSubmit ? local.syncState : 'synced',
+    ...(keepRejection && rejectReason ? { rejectReason } : {}),
   };
 }
 

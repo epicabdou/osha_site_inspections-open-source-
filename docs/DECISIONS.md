@@ -310,3 +310,22 @@ migrations, seeds the templates and truncates the data tables on every run.
 
 **Consequences.** Tests are repeatable and isolated. Running them locally needs Docker (or any
 Postgres you are happy to empty).
+
+## 21. Push
+
+**Context.** The brief fixes the contract (savepoint per mutation, a ledger, `accepted` /
+`duplicate` / `rejected`) but leaves some edges open.
+
+**Decision.**
+
+- A batch is one transaction holding the `server_seq` advisory lock (record 7), with a savepoint
+  per mutation. At most 100 mutations keeps the lock short.
+- A previously accepted mutation answers `duplicate`; a previously rejected one answers with its
+  stored rejection, so a retry never turns a refusal into something else.
+- A malformed entry with a valid UUIDv7 `mutationId` is recorded as `invalid_payload`; one without a
+  usable id is reported but cannot be recorded.
+- The device treats an omitted result as a temporary server error (HTTP 502 in the engine):
+  the entry returns to the queue and the engine backs off.
+
+**Consequences.** Retries are always safe and always report the same outcome, which the
+push-idempotency property test checks on random batches.

@@ -1,7 +1,7 @@
 'use client';
 
 import { useLiveQuery } from 'dexie-react-hooks';
-import { useEffect, useId, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { isFailure } from '@/lib/answers/evaluate';
 import type { ItemAnswer } from '@/lib/answers/reduce';
 import { db, isQuotaExceeded, type LastUser, type LocalAnswerEvent } from '@/lib/db';
@@ -270,13 +270,18 @@ function NumberInput({
           ? `Expected at most ${item.max} ${item.unit ?? ''}`
           : undefined;
 
+  const committed = useRef(value);
+
   function commit() {
     const normalised = text.trim().replace(',', '.');
     if (!normalised) return;
     const parsed = Number(normalised);
     if (!Number.isFinite(parsed)) return setInvalid(true);
     setInvalid(false);
-    if (parsed !== value) onSave(parsed);
+    // Blur and the Save button can both fire for one action: commit each value once.
+    if (parsed === committed.current) return;
+    committed.current = parsed;
+    onSave(parsed);
   }
 
   return (
@@ -334,7 +339,12 @@ function TextInput({
   onSave: (value: string) => void;
 }) {
   const [text, setText] = useState(value);
-  const commit = () => text !== value && onSave(text);
+  const committed = useRef(value);
+  const commit = () => {
+    if (text === committed.current) return;
+    committed.current = text;
+    onSave(text);
+  };
   return (
     <div className="flex flex-col gap-2">
       <textarea
@@ -372,6 +382,7 @@ function NoteInput({
   const id = useId();
   const [expanded, setExpanded] = useState(Boolean(value));
   const [text, setText] = useState(value);
+  const committed = useRef(value);
   const open = expanded || required;
 
   if (!open) {
@@ -386,7 +397,12 @@ function NoteInput({
       </button>
     );
   }
-  const commit = () => text.trim() !== value && onSave(text.trim());
+  const commit = () => {
+    const next = text.trim();
+    if (next === committed.current) return;
+    committed.current = next;
+    onSave(next);
+  };
   return (
     <div className="mt-3 flex flex-col gap-1">
       <label htmlFor={id} className="text-sm font-semibold">

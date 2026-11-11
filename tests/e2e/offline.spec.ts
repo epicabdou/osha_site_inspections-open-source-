@@ -7,12 +7,13 @@ import {
   waitForAllSynced,
   waitForServiceWorker,
 } from './helpers/field';
+import { e2eQuery } from './helpers/db';
 import { withGpsExif } from './helpers/jpeg';
 
 /**
  * E2E 1 — the demo story. After one online visit, the inspector goes offline, reloads
  * /field, completes and submits an inspection with a photo, reloads again offline and
- * finds everything there.
+ * finds everything there. Back online, everything syncs to the server.
  */
 test.describe('offline inspection', () => {
   test.skip(!hasFullStack(), 'Needs Clerk test users and E2E_DATABASE_URL');
@@ -49,6 +50,23 @@ test.describe('offline inspection', () => {
     await expect(page.locator('header').getByText('Submitted', { exact: true })).toBeVisible();
     await expect(page.getByText(/11 of 11 answered/)).toBeVisible();
     await expect(page.getByTestId('pending-count')).toBeVisible();
+
+    // Back in coverage: the queue drains on its own and the server has the inspection.
+    await context.setOffline(false);
+    await expect
+      .poll(
+        async () => {
+          const [row] = await e2eQuery<{ status: string; events: string }>(
+            `select i.status, count(e.id)::text as events
+               from inspections i left join answer_events e on e.inspection_id = i.id
+              where i.site = $1 group by i.id`,
+            [site],
+          );
+          return row ? `${row.status}:${row.events}` : 'missing';
+        },
+        { timeout: 30_000 },
+      )
+      .toBe('submitted:11');
   });
 
   test('the app is installable: manifest and service worker are in place', async ({ page }) => {

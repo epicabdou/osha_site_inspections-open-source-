@@ -2,16 +2,20 @@
 
 import type { SyncState } from '@/lib/schemas';
 import { formatTime } from '@/lib/field/format';
+import { useConnectivity } from '@/lib/sync/connectivity';
 import { usePendingCount, useSyncStatus } from './hooks';
 
 /** Always-visible sync summary: iOS cannot sync in the background, so show what waits. */
 export function SyncBadge() {
   const status = useSyncStatus();
   const pending = usePendingCount();
+  const online = useConnectivity();
+  const phase =
+    !online && status.phase !== 'syncing' && status.phase !== 'paused' ? 'offline' : status.phase;
 
   let label: string;
   let tone: string;
-  switch (status.phase) {
+  switch (phase) {
     case 'syncing':
       label = 'Syncing…';
       tone = 'border-accent text-accent';

@@ -20,6 +20,7 @@ import {
   submitPayloadSchema,
 } from '@/lib/schemas';
 import { deviceNowIso, nextHlc } from '@/lib/sync/clock';
+import { notifyLocalWrite } from '@/lib/sync/signal';
 
 /**
  * Every write the inspector makes. Each one writes the data and its outbox entry in
@@ -66,7 +67,7 @@ export async function createInspection(
   user: LastUser,
   database: FieldDatabase = defaultDb,
 ): Promise<LocalInspection> {
-  return database.transaction(
+  const inspection = await database.transaction(
     'rw',
     [database.templates, database.inspections, database.outbox, database.meta],
     async () => {
@@ -98,6 +99,8 @@ export async function createInspection(
       return inspection;
     },
   );
+  notifyLocalWrite();
+  return inspection;
 }
 
 /**
@@ -115,7 +118,7 @@ export async function recordAnswer(
   user: LastUser,
   database: FieldDatabase = defaultDb,
 ): Promise<LocalAnswerEvent> {
-  return database.transaction(
+  const recorded = await database.transaction(
     'rw',
     [
       database.templates,
@@ -176,6 +179,8 @@ export async function recordAnswer(
       return event;
     },
   );
+  notifyLocalWrite();
+  return recorded;
 }
 
 /** Submits an inspection. Offline, the submission waits in the outbox like everything else. */
@@ -222,4 +227,5 @@ export async function submitInspection(
       outboxEntry({ mutationId: uuidv7(), kind: 'inspection.submit', payload, hlc }, now),
     );
   });
+  notifyLocalWrite();
 }
