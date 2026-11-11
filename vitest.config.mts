@@ -28,6 +28,7 @@ export default defineConfig({
           name: 'unit',
           include: ['tests/unit/**/*.test.ts'],
           environment: 'node',
+          setupFiles: ['tests/setup/fake-indexeddb.ts'],
         },
       },
       {
@@ -36,6 +37,8 @@ export default defineConfig({
           name: 'property',
           include: ['tests/property/**/*.test.ts'],
           environment: 'node',
+          setupFiles: ['tests/setup/fake-indexeddb.ts'],
+          testTimeout: 60_000,
         },
       },
       {

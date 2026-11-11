@@ -40,7 +40,8 @@ const serwist = new Serwist({
     },
     {
       matcher: ({ url }) =>
-        /\.clerk\.accounts\.dev$|^clerk\./.test(url.hostname) && url.pathname.includes('/npm/@clerk/'),
+        /\.clerk\.accounts\.dev$|^clerk\./.test(url.hostname) &&
+        url.pathname.includes('/npm/@clerk/'),
       handler: new StaleWhileRevalidate({
         cacheName: 'clerk-scripts',
         plugins: [new ExpirationPlugin({ maxEntries: 8, maxAgeSeconds: 7 * 24 * 60 * 60 })],
@@ -68,10 +69,6 @@ serwist.registerRoute(
   }),
 );
 
-self.addEventListener('message', (event) => {
-  if ((event.data as { type?: string } | null)?.type === 'SKIP_WAITING') {
-    void self.skipWaiting();
-  }
-});
+// Serwist handles { type: "SKIP_WAITING" } messages itself when skipWaiting is false.
 
 serwist.addEventListeners();

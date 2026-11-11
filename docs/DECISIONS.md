@@ -20,6 +20,11 @@ Records are never deleted; a reversed decision gets a new record that supersedes
 | 13  | [Clerk does not run on /field at all](#13-proxy-skips-field)                  | Implemented (M0)  |
 | 14  | [Tooling details](#14-tooling)                                                | Implemented (M0)  |
 | 15  | [Hosting setup: migrations run in the Vercel build](#15-hosting-setup)        | Implemented (M0)  |
+| 16  | [Serwist in configurator mode, run after `next build`](#16-serwist)           | Implemented (M1)  |
+| 17  | [Photo bytes stored as ArrayBuffer, not Blob](#17-photo-bytes)                | Implemented (M1)  |
+| 18  | [Device-side details: extra table, sync states, clock format](#18-device)     | Implemented (M1)  |
+| 19  | [Libraries added in M1](#19-m1-libraries)                                     | Implemented (M1)  |
+| 20  | [A throwaway Postgres for end-to-end tests](#20-e2e-database)                 | Implemented (M1)  |
 
 ---
 
@@ -239,3 +244,69 @@ code serves requests.
 **Consequences.** Schema changes ship with the code that needs them. Migrations must stay
 backward-compatible with the previous deployment while it drains (add columns before using them;
 remove them a release later).
+
+## 16. Serwist
+
+**Context.** The brief asks for `@serwist/next` "with its post-build step, so it can precache
+prerendered routes", or `@serwist/turbopack` when building with Turbopack. Next 16 builds with
+Turbopack, and `@serwist/turbopack`'s route handler declares segment config that Cache Components
+(record 10) does not allow; its own source says it is for apps without Cache Components.
+
+**Decision.** `@serwist/next` in configurator mode: `pnpm build` runs
+`next build && serwist build serwist.config.mjs`, which bundles `app/sw.ts` with esbuild into
+`public/sw.js` and injects the precache manifest from the build output. Prerendered HTML is not
+globbed (`precachePrerendered: false`), because that would also precache the `/dashboard` shell;
+`/field` is precached by URL with the build id as its revision. Verified on a Vercel preview: the
+file written after `next build` is deployed, and its manifest matches Vercel's
+`/_next/static/immutable/` asset paths.
+
+**Consequences.** One worker, built from source we can read. The worker never activates itself
+(`skipWaiting: false`); the page reloads only after the user taps "Update". `/api/*` and
+`/dashboard*` are network-only.
+
+## 17. Photo bytes
+
+**Context.** The brief's Dexie `photos` row holds a `blob`. The WebKit build used by Playwright
+fails to store a `Blob` in IndexedDB (the transaction aborts), while every engine stores
+`ArrayBuffer`s.
+
+**Decision.** `photos.data` holds the compressed JPEG as an `ArrayBuffer`, with `mime` beside it.
+A `Blob` is rebuilt for display and upload.
+
+**Consequences.** Identical behaviour in Chromium, Firefox and WebKit, at the cost of one copy when
+reading a photo.
+
+## 18. Device
+
+- **`correctiveActions` table.** Pull returns corrective actions on the inspector's inspections;
+  the brief's Dexie schema has no table for them, so version 1 adds
+  `correctiveActions: 'id, inspectionId'`.
+- **Answer `syncState`.** `local`: saved on the device, not yet handed to the server. `queued`:
+  in a push request, or waiting to retry one. `synced`: the server accepted it (or already had
+  it). `rejected`: the server refused it; the reason is kept and the event never becomes the
+  current value.
+- **HLC format.** `<wallMs, 15 digits>-<counter, 5 digits>-<deviceId>`, so plain string order is
+  clock order. The shared schema checks that the clock ends with the event's `deviceId`.
+- **The critical flag is sticky.** `hasCriticalFailure` is set by the first critical fail and never
+  cleared by a later pass, matching the server's rule that only a supervisor closes the corrective
+  action. The banner shows the items whose current answer still fails.
+
+## 19. M1 libraries
+
+All within the brief's stack or its direct tooling: `dexie`, `dexie-react-hooks`,
+`fake-indexeddb`; `serwist`, `@serwist/next`, `@serwist/cli`, and `esbuild` (which the Serwist
+CLI uses, and which also bundles the seed script so it can resolve `@/` imports);
+`@radix-ui/react-dialog` and `@radix-ui/react-toast`; `uuid` for UUIDv7 (the brief's id format,
+which the platform has no built-in generator for).
+
+## 20. E2E database
+
+**Context.** End-to-end tests create inspections and, from M2, push them. They must never write
+to the demo's Neon database.
+
+**Decision.** Playwright starts the app with `DATABASE_URL` set to `E2E_DATABASE_URL`: a Docker
+container locally and a `postgres:17` service container in CI. Global setup applies the
+migrations, seeds the templates and truncates the data tables on every run.
+
+**Consequences.** Tests are repeatable and isolated. Running them locally needs Docker (or any
+Postgres you are happy to empty).

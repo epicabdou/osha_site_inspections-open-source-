@@ -33,12 +33,20 @@ export const answerEventSchema = z
     value: answerValueSchema,
     note: z.string().max(5000).optional(),
     photoHashes: z.array(photoHash).max(20),
-    hlc: z.string().min(1).max(64),
+    /** Hybrid logical clock, `<wallMs 15 digits>-<counter 5 digits>-<deviceId>`; see lib/sync/hlc.ts. */
+    hlc: z
+      .string()
+      .max(100)
+      .regex(/^\d{15}-\d{5}-.+$/, 'Expected a hybrid logical clock'),
     deviceId: z.string().min(1).max(64),
     authorId: userId,
     deviceTime: isoUtc,
   })
-  .strict();
+  .strict()
+  .refine((event) => event.hlc.endsWith(`-${event.deviceId}`), {
+    message: 'The clock must end with the event’s deviceId',
+    path: ['hlc'],
+  });
 export type AnswerEventPayload = z.infer<typeof answerEventSchema>;
 
 /** An answer event as stored on the device, with its sync state. */

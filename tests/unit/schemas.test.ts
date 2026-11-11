@@ -162,7 +162,7 @@ describe('answer schemas', () => {
     itemId: 'guardrail-height',
     value: { kind: 'number', value: 1010 },
     photoHashes: [HASH],
-    hlc: '000001234567890:0000:device-a',
+    hlc: '000001794430000-00000-device-a',
     deviceId: 'device-a',
     authorId: 'user_123',
     deviceTime: '2026-11-11T09:31:00.000Z',

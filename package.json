@@ -25,7 +25,9 @@
     "test:e2e": "playwright test",
     "db:generate": "node --conditions=react-server node_modules/drizzle-kit/bin.cjs generate",
     "db:migrate": "node --conditions=react-server node_modules/drizzle-kit/bin.cjs migrate",
-    "db:studio": "node --conditions=react-server node_modules/drizzle-kit/bin.cjs studio"
+    "db:studio": "node --conditions=react-server node_modules/drizzle-kit/bin.cjs studio",
+    "db:seed": "esbuild server/seed/run.ts --bundle --platform=node --format=cjs --packages=external --outfile=.next/cache/seed.cjs --log-level=warning && node --conditions=react-server .next/cache/seed.cjs",
+    "icons": "node scripts/generate-icons.mjs"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.9.25",

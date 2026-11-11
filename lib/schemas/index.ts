@@ -7,3 +7,4 @@ export * from './template';
 export * from './inspection';
 export * from './answer';
 export * from './reject-reason';
+export * from './sync';

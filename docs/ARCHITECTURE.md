@@ -46,7 +46,7 @@ box works with none.
 | Static `/field` shell, `ensureStatic` | M0        | Done        |
 | Clerk, `proxy.ts`, role checks        | M0        | Done        |
 | Postgres schema and first migration   | M0        | Done        |
-| Dexie, inspections, answers, Serwist  | M1        | Not started |
+| Dexie, inspections, answers, Serwist  | M1        | Done        |
 | Outbox, push, pull, HLC               | M2        | Not started |
 | Photos                                | M3        | Not started |
 | Dashboard                             | M4        | Not started |
@@ -97,14 +97,33 @@ The `server-only` and `client-only` packages make a wrong import fail the build;
 
 ## Service worker strategy
 
-Planned for M1 (Serwist):
+`app/sw.ts`, bundled by `serwist build` after `next build` (see `docs/DECISIONS.md` #16):
 
-- Precache the build assets and the `/field` page.
+- Precache the build assets and the `/field` page (by URL, revisioned with the build id).
 - Answer every navigation to `/field`, with any search params, with the cached `/field` page.
 - Network-only for `/api/*` and `/dashboard*`; never cache their responses.
 - Stale-while-revalidate for Clerk's browser script; the app must work if it fails to load.
-- Register from a client component with `updateViaCache: 'none'`. When a new version is waiting,
-  show an "Update available" toast; never activate it automatically while an inspection is open.
+- Registered from a client component (`components/ui/service-worker.tsx`) with
+  `updateViaCache: 'none'`. When a new version is waiting, an "Update available" toast appears; the
+  new worker activates only when the user taps "Update", never on its own, so an open inspection is
+  never swapped out.
+
+## The field app on the device
+
+- **Data.** `lib/db.ts` (Dexie): templates, inspections, answer events, the outbox, photos,
+  corrective actions and `meta` (device id, last user, pull cursor, HLC, demo settings).
+- **Writes.** `lib/field/actions.ts` (`createInspection`, `recordAnswer`, `submitInspection`) and
+  `lib/field/photos.ts`. Each writes its data and its outbox entry in one Dexie transaction.
+  Photos are compressed and hashed before the transaction opens.
+- **Reads.** Components use `useLiveQuery`; the current value of every item comes from
+  `lib/answers/reduce.ts`, failures and submit checks from `lib/answers/evaluate.ts`.
+- **Who is signed in.** `components/field/clerk-bridge.tsx` saves `{ userId, displayName, role }`
+  to `meta.lastUser` after a sign-in and hands the sync engine a token provider. The app runs from
+  `lastUser` whether or not Clerk loaded. A different user signing in while another user's work is
+  unsynced is blocked until that work is exported or deliberately deleted; sign-out with unsynced
+  work asks first, then deletes the device database.
+- **Navigation.** `lib/field/navigation.ts`: `?view=home|new|inspection|settings`, `id`,
+  `section`.
 
 ## Repository layout
 

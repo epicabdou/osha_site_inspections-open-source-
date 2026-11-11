@@ -24,7 +24,7 @@ Built in six milestones, each reviewed before the next starts.
 | Milestone | Scope                                                                       | State       |
 | --------- | --------------------------------------------------------------------------- | ----------- |
 | M0        | Foundation: tooling, CI, Clerk + `proxy.ts`, Postgres schema, static /field | Done        |
-| M1        | Offline field app: Dexie, inspections, answers, critical flags, PWA         | Not started |
+| M1        | Offline field app: Dexie, inspections, answers, critical flags, PWA         | Done        |
 | M2        | Sync: outbox, push, pull, HLC, idempotency, rejections                      | Not started |
 | M3        | Photos: compression, hashing, upload queue                                  | Not started |
 | M4        | Supervisor dashboard: history, conflicts, corrective actions                | Not started |
@@ -132,7 +132,11 @@ pnpm db:migrate
 applies the committed migrations in `server/db/migrations` to `DATABASE_URL` (or
 `DATABASE_URL_UNPOOLED` when set). After changing
 `server/db/schema.ts`, run `pnpm db:generate` and commit the new migration; CI fails if they
-drift apart. Seed data (`pnpm db:seed`) arrives in M5.
+drift apart. Then publish the demo checklists (idempotent; published versions never change):
+
+```bash
+pnpm db:seed
+```
 
 ### Run it
 
