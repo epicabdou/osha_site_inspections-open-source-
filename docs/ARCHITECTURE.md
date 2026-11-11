@@ -48,7 +48,7 @@ box works with none.
 | Postgres schema and first migration   | M0        | Done        |
 | Dexie, inspections, answers, Serwist  | M1        | Done        |
 | Outbox, push, pull, HLC               | M2        | Done        |
-| Photos                                | M3        | Not started |
+| Photos                                | M3        | Done        |
 | Dashboard                             | M4        | Not started |
 
 ## Why /field is one static route
@@ -94,6 +94,26 @@ both on every pull request.
 
 The `server-only` and `client-only` packages make a wrong import fail the build; ESLint
 `no-restricted-imports` rules in `eslint.config.mjs` catch it earlier, in the editor.
+
+## Photos
+
+Photos travel separately from answers. The answer syncs in seconds and names the photo by the
+SHA-256 of its compressed bytes; the photo follows when bandwidth allows.
+
+1. **Capture** with `<input type="file" accept="image/*" capture="environment">` (or the library).
+2. **Compress** on the device (`lib/photos/compress.ts`): decode with EXIF orientation applied,
+   longest side at most 1600 px, JPEG quality 0.8. Re-encoding drops all metadata, GPS included.
+3. **Hash** the compressed bytes before any Dexie transaction opens.
+4. **Store** the photo row, the answer event that references the hash, and its outbox entry in one
+   transaction (`lib/field/photos.ts`).
+5. **Upload** after each sync cycle, two at a time (`lib/photos/upload-queue.ts`):
+   `POST /api/photos/upload` returns a client token scoped to `inspections/<id>/<hash>.jpg`, the
+   device `PUT`s straight to the private Vercel Blob store ("already exists" counts as success),
+   then `POST /api/photos/confirm` records the photo after the server checks storage has a JPEG
+   under 5 MB. Retries use the sync backoff; a reload resumes the queue from Dexie.
+6. **Keep** the local copy until it is uploaded and its inspection is closed, or for 30 days.
+
+The store is private: `GET /api/photos/<hash>` streams a photo to its inspector or a supervisor.
 
 ## Service worker strategy
 

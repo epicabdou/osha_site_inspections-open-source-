@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 import type { LastUser } from '@/lib/db';
 import { loadDemoSettings } from '@/lib/demo/settings';
 import { fieldHref, navigate, useFieldRoute } from '@/lib/field/navigation';
+import { photoQueueTask } from '@/lib/photos/upload-queue';
 import { clockLooksWrong, syncEngine } from '@/lib/sync/engine';
 import { buttonClass } from '@/components/ui/button';
 import { ClerkBridge } from './clerk-bridge';
@@ -25,6 +26,7 @@ export function FieldApp() {
   const lastUser = useLastUser();
 
   useEffect(() => {
+    syncEngine.registerAfterCycle(photoQueueTask);
     void loadDemoSettings().then(() => syncEngine.start());
   }, []);
 

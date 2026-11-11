@@ -4,11 +4,11 @@ import { DEFAULT_DEMO_SETTINGS, updateDemoSettings } from '@/lib/demo/settings';
 import {
   apiFetch,
   AuthRequiredError,
-  externalFetch,
   hasTokenProvider,
   HttpError,
   NetworkError,
   setTokenProvider,
+  throughChaos,
 } from '@/lib/sync/api';
 
 const ok = () => new Response('{}', { status: 200 });
@@ -91,7 +91,7 @@ describe('demo chaos settings', () => {
     vi.stubGlobal('fetch', fetchMock);
     await updateDemoSettings({ forceOffline: true });
     await expect(apiFetch('/x')).rejects.toThrow('forced by the demo panel');
-    await expect(externalFetch('https://blob.example/x')).rejects.toBeInstanceOf(NetworkError);
+    await expect(throughChaos()).rejects.toBeInstanceOf(NetworkError);
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -128,21 +128,5 @@ describe('demo chaos settings', () => {
       latencyMs: 0,
       clockSkewMs: 24 * 60 * 60 * 1000,
     });
-  });
-});
-
-describe('externalFetch', () => {
-  it('passes through without a token and maps transport failures', async () => {
-    const fetchMock = vi.fn(async () => ok());
-    vi.stubGlobal('fetch', fetchMock);
-    setTokenProvider(null);
-    await expect(
-      externalFetch('https://blob.example/x', { method: 'PUT' }),
-    ).resolves.toBeInstanceOf(Response);
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => Promise.reject(new Error('reset'))),
-    );
-    await expect(externalFetch('https://blob.example/x')).rejects.toBeInstanceOf(NetworkError);
   });
 });

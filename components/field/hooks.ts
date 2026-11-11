@@ -28,7 +28,7 @@ export function usePendingCount(): number {
     useLiveQuery(async () => {
       const [outbox, photos] = await Promise.all([
         db.outbox.count(),
-        db.photos.where('uploadState').notEqual('uploaded').count(),
+        db.photos.where('uploadState').anyOf(['pending', 'uploading']).count(),
       ]);
       return outbox + photos;
     }, []) ?? 0

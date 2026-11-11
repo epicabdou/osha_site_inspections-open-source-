@@ -54,7 +54,8 @@ export type OutboxEntry = {
   lastError?: string;
 };
 
-export type PhotoUploadState = 'pending' | 'uploading' | 'uploaded';
+/** `rejected`: the server refused the photo for good (e.g. its inspection was rejected). */
+export type PhotoUploadState = 'pending' | 'uploading' | 'uploaded' | 'rejected';
 
 export type LocalPhoto = {
   /** SHA-256 of `blob`, hex. Also the upload path and the answer's reference. */

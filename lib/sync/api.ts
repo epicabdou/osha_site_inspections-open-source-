@@ -51,8 +51,12 @@ export function hasTokenProvider(): boolean {
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-/** Applies the chaos settings; throws NetworkError when the request is "dropped". */
-async function applyChaos(): Promise<void> {
+/**
+ * Applies the demo chaos settings to a request about to be made; throws NetworkError when
+ * the request is "dropped" or the device is forced offline. Every request from the sync
+ * engine and the photo queue passes through here.
+ */
+export async function throughChaos(): Promise<void> {
   const settings = getDemoSettings();
   if (settings.latencyMs > 0) await sleep(settings.latencyMs);
   if (settings.forceOffline) throw new NetworkError('Offline (forced by the demo panel)');
@@ -66,7 +70,7 @@ async function applyChaos(): Promise<void> {
  * Throws AuthRequiredError, NetworkError or HttpError.
  */
 export async function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
-  await applyChaos();
+  await throughChaos();
   const token = tokenProvider ? await tokenProvider().catch(() => null) : null;
   if (!token) throw new AuthRequiredError();
 
@@ -83,17 +87,4 @@ export async function apiFetch(path: string, init: RequestInit = {}): Promise<Re
   if (response.status === 401) throw new AuthRequiredError();
   if (!response.ok) throw new HttpError(response.status);
   return response;
-}
-
-/**
- * For requests that do not go to the app (direct uploads to storage): applies the
- * chaos settings and maps transport failures to NetworkError, without a token.
- */
-export async function externalFetch(url: string, init: RequestInit = {}): Promise<Response> {
-  await applyChaos();
-  try {
-    return await fetch(url, init);
-  } catch (error) {
-    throw new NetworkError(error instanceof Error ? error.message : undefined);
-  }
 }

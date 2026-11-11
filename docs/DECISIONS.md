@@ -329,3 +329,26 @@ Postgres you are happy to empty).
 
 **Consequences.** Retries are always safe and always report the same outcome, which the
 push-idempotency property test checks on random batches.
+
+## 22. Photo storage
+
+**Context.** Site photos can show people, plates and premises. Record 6 fixed the shape (client
+upload with a token, then an explicit confirm); the store's access level and failure handling were
+open.
+
+**Decision.**
+
+- The Blob store is **private** (`field-inspections-photos`, `iad1`). The dashboard and the field
+  app load photos through `GET /api/photos/<hash>`, which checks the viewer is the inspection's
+  inspector or a supervisor.
+- A client token allows exactly one pathname, JPEG only, at most 5 MB, for 10 minutes, with no
+  overwrite and no random suffix, so the path is a pure function of the hash.
+- Confirm trusts storage, not the client: it reads the object's metadata with `head()` before
+  recording the row.
+- The queue retries network and 5xx failures (and storage's own temporary errors) with the sync
+  backoff; a 4xx refusal marks the photo `rejected` and keeps it on the device.
+- End-to-end tests upload to the same store; global setup deletes the photos of the previous run
+  before emptying the test database.
+
+**Consequences.** No public URL ever exists for a photo. Photo views cost a function invocation,
+acceptable for a dashboard.

@@ -67,6 +67,13 @@ test.describe('offline inspection', () => {
         { timeout: 30_000 },
       )
       .toBe('submitted:11');
+    // The photo follows the answers: once it is uploaded, nothing is left waiting.
+    await waitForAllSynced(page);
+    const photos = await e2eQuery<{ count: string }>(
+      `select count(*)::text as count from photos p join inspections i on i.id = p.inspection_id where i.site = $1`,
+      [site],
+    );
+    expect(Number(photos[0]?.count)).toBe(1);
   });
 
   test('the app is installable: manifest and service worker are in place', async ({ page }) => {

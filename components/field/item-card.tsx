@@ -504,7 +504,8 @@ function PhotoSection({
 }
 
 function PhotoThumb({ hash, alt }: { hash: string; alt: string }) {
-  const photo = useLiveQuery(() => db.photos.get(hash), [hash]);
+  // undefined while loading; null when the photo is no longer kept on this device.
+  const photo = useLiveQuery(async () => (await db.photos.get(hash)) ?? null, [hash]);
   const url = useMemo(
     () => (photo ? URL.createObjectURL(new Blob([photo.data], { type: photo.mime })) : null),
     [photo],
@@ -516,16 +517,28 @@ function PhotoThumb({ hash, alt }: { hash: string; alt: string }) {
 
   return (
     <figure className="flex w-24 flex-col gap-1">
-      {url ? (
-        // eslint-disable-next-line @next/next/no-img-element -- a local blob URL; next/image cannot optimise it
-        <img src={url} alt={alt} className="border-border size-24 rounded border-2 object-cover" />
+      {url || photo === null ? (
+        // eslint-disable-next-line @next/next/no-img-element -- a device blob URL, or the authenticated photo route; next/image cannot optimise either
+        <img
+          src={url ?? `/api/photos/${hash}`}
+          alt={alt}
+          className="border-border size-24 rounded border-2 object-cover"
+        />
       ) : (
         <div className="bg-surface border-border flex size-24 items-center justify-center rounded border-2 text-center text-xs">
-          {photo === undefined ? 'Loading' : 'Not on this device'}
+          Loading
         </div>
       )}
       <figcaption className="text-muted text-xs">
-        {photo?.uploadState === 'uploaded' ? 'Uploaded' : photo ? 'Waiting to upload' : ''}
+        {photo === null
+          ? 'Uploaded'
+          : photo?.uploadState === 'uploaded'
+            ? 'Uploaded'
+            : photo?.uploadState === 'rejected'
+              ? 'Upload refused'
+              : photo
+                ? 'Waiting to upload'
+                : ''}
       </figcaption>
     </figure>
   );
