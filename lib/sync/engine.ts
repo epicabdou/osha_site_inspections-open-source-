@@ -1,6 +1,6 @@
 import { db, type FieldDatabase, getMeta, setMeta } from '@/lib/db';
 import { pushResponseSchema } from '@/lib/schemas';
-import { apiFetch, AuthRequiredError, HttpError, NetworkError } from './api';
+import { apiFetch, AuthRequiredError, ForbiddenError, HttpError, NetworkError } from './api';
 import { deviceNow } from './clock';
 import { reportRequest } from './connectivity';
 import {
@@ -39,6 +39,8 @@ export type SyncSnapshot = {
   clockOffsetMs?: number;
   /** When the next automatic retry is due (epoch ms), after a failure. */
   nextRetryAt?: number;
+  /** Why sync is paused: no live session, or an account without a role. */
+  pausedReason?: 'sign_in' | 'no_role';
 };
 
 export const DEBOUNCE_MS = 2_000;
@@ -163,7 +165,12 @@ export class SyncEngine {
   }
 
   private async cycle(): Promise<void> {
-    this.set({ phase: 'syncing', message: undefined, nextRetryAt: undefined });
+    this.set({
+      phase: 'syncing',
+      message: undefined,
+      nextRetryAt: undefined,
+      pausedReason: undefined,
+    });
     try {
       await this.pushAll();
       await pullAll(this.database);
@@ -224,7 +231,18 @@ export class SyncEngine {
   private handleFailure(error: unknown) {
     if (error instanceof AuthRequiredError) {
       // Not an error: work continues on the device; sync resumes after sign-in.
-      this.set({ phase: 'paused', message: 'Sign in to sync' });
+      this.set({ phase: 'paused', message: 'Sign in to sync', pausedReason: 'sign_in' });
+      return;
+    }
+    if (error instanceof ForbiddenError) {
+      // Signed in, but the account has no role: retrying cannot help, so do not back off
+      // and hammer the server. Work stays on the device; sync resumes on the next trigger
+      // (sign-in, page visible, online) once a role is granted.
+      this.set({
+        phase: 'paused',
+        message: 'Your account has no role in this app, so nothing can sync.',
+        pausedReason: 'no_role',
+      });
       return;
     }
     this.failures += 1;

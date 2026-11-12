@@ -4,6 +4,7 @@ import { DEFAULT_DEMO_SETTINGS, updateDemoSettings } from '@/lib/demo/settings';
 import {
   apiFetch,
   AuthRequiredError,
+  ForbiddenError,
   hasTokenProvider,
   HttpError,
   NetworkError,
@@ -54,6 +55,17 @@ describe('apiFetch', () => {
       throw new Error('Clerk not loaded');
     });
     await expect(apiFetch('/x')).rejects.toBeInstanceOf(AuthRequiredError);
+  });
+
+  it('maps 403 (signed in, no role) to ForbiddenError, a non-temporary HttpError', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => Response.json({ error: 'forbidden' }, { status: 403 })),
+    );
+    const error = await apiFetch('/x').catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(ForbiddenError);
+    expect(error).toBeInstanceOf(HttpError);
+    expect((error as HttpError).temporary).toBe(false);
   });
 
   it('maps 401 to sign-in-required and other statuses to HttpError', async () => {

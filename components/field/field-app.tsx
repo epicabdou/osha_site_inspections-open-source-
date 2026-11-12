@@ -104,19 +104,42 @@ function FieldShell({ user }: { user: LastUser }) {
           .
         </p>
       )}
+      {user.role === null && (
+        <div
+          role="alert"
+          className="border-danger bg-danger-surface border-b-2 px-4 py-3 text-center text-sm"
+          data-testid="no-role-notice"
+        >
+          <p className="font-semibold">Your account has no role in this app yet.</p>
+          <p>
+            Nothing can sync until an administrator makes you an inspector. To try the demo now,{' '}
+            <a
+              className="text-accent underline"
+              href={fieldHref({ view: 'settings' })}
+              onClick={(event) => {
+                event.preventDefault();
+                navigate({ view: 'settings' });
+              }}
+            >
+              sign out
+            </a>{' '}
+            and sign in with the shared demo inspector account.
+          </p>
+        </div>
+      )}
       <ClockNotice />
       <div className="px-4">
         <ChaosPanel />
       </div>
       <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col px-4 pt-4 pb-32">
-        {route.view === 'new' ? (
+        {route.view === 'new' && user.role === 'inspector' ? (
           <NewInspectionView user={user} />
         ) : route.view === 'inspection' ? (
           <InspectionView key={route.id} user={user} id={route.id} section={route.section} />
         ) : route.view === 'settings' ? (
           <SettingsView user={user} />
         ) : (
-          <HomeView />
+          <HomeView canRecord={user.role === 'inspector'} />
         )}
       </main>
     </div>

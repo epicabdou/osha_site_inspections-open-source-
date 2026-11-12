@@ -33,6 +33,19 @@ export class HttpError extends Error {
   }
 }
 
+/**
+ * The session is valid but the account has no role in this app (or the wrong one).
+ * Like AuthRequiredError, retrying will not help until an administrator grants a role,
+ * so sync pauses instead of backing off. Extends HttpError so per-request handling of
+ * a 403 (for example a refused photo) is unchanged.
+ */
+export class ForbiddenError extends HttpError {
+  constructor() {
+    super(403);
+    this.name = 'ForbiddenError';
+  }
+}
+
 type TokenProvider = () => Promise<string | null>;
 let tokenProvider: TokenProvider | null = null;
 
@@ -85,6 +98,7 @@ export async function apiFetch(path: string, init: RequestInit = {}): Promise<Re
     throw new NetworkError(error instanceof Error ? error.message : undefined);
   }
   if (response.status === 401) throw new AuthRequiredError();
+  if (response.status === 403) throw new ForbiddenError();
   if (!response.ok) throw new HttpError(response.status);
   return response;
 }

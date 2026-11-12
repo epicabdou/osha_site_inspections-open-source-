@@ -9,7 +9,7 @@ import {
 } from './helpers/field';
 import { e2eQuery } from './helpers/db';
 import { newSupervisor, openOnDashboard } from './helpers/devices';
-import { withGpsExif } from './helpers/jpeg';
+import { uniqueScreenshot, withGpsExif } from './helpers/jpeg';
 
 /**
  * E2E 1 — the demo story. After one online visit, the inspector goes offline, reloads
@@ -31,7 +31,7 @@ test.describe('offline inspection', () => {
     const photo = {
       name: 'site.jpg',
       mimeType: 'image/jpeg',
-      buffer: withGpsExif(await page.screenshot({ type: 'jpeg', quality: 80 })),
+      buffer: withGpsExif(await uniqueScreenshot(page)),
     };
 
     await context.setOffline(true);
@@ -72,7 +72,9 @@ test.describe('offline inspection', () => {
     // The photo follows the answers: once it is uploaded, nothing is left waiting.
     await waitForAllSynced(page);
     const photos = await e2eQuery<{ count: string }>(
-      `select count(*)::text as count from photos p join inspections i on i.id = p.inspection_id where i.site = $1`,
+      `select count(*)::text as count from photos p
+        where p.hash in (select unnest(e.photo_hashes) from answer_events e
+                          join inspections i on i.id = e.inspection_id where i.site = $1)`,
       [site],
     );
     expect(Number(photos[0]?.count)).toBe(1);

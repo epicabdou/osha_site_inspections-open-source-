@@ -3,7 +3,7 @@ import { jpegHasExif } from '@/lib/photos/compress';
 import { hasFullStack, testUsers } from './env';
 import { e2eQuery } from './helpers/db';
 import { signInToField, startInspection, waitForAllSynced } from './helpers/field';
-import { withGpsExif } from './helpers/jpeg';
+import { uniqueScreenshot, withGpsExif } from './helpers/jpeg';
 
 /** Every stored photo's bytes, read straight from the device database. */
 async function storedPhotos(
@@ -43,7 +43,7 @@ test.describe('photos', () => {
   }) => {
     await signInToField(page, testUsers()!.inspector);
     await waitForAllSynced(page);
-    const original = withGpsExif(await page.screenshot({ type: 'jpeg', quality: 90 }));
+    const original = withGpsExif(await uniqueScreenshot(page, 90));
     expect(jpegHasExif(original)).toBe(true);
 
     await startInspection(page, `EXIF check ${Date.now()}`, 'Scaffold pre-use inspection');
@@ -76,7 +76,7 @@ test.describe('photos', () => {
     }) => {
       await signInToField(page, testUsers()!.inspector);
       await waitForAllSynced(page);
-      const jpeg = await page.screenshot({ type: 'jpeg', quality: 80 });
+      const jpeg = await uniqueScreenshot(page);
 
       // Storage is unreachable: every direct upload to Blob fails mid-flight. (The Blob client
       // retries on its own, so the photo stays "uploading" or goes back to "pending".)

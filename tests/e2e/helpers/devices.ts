@@ -1,6 +1,6 @@
 import type { Browser, BrowserContext, Page } from '@playwright/test';
 import type { DemoSettings } from '@/lib/db';
-import { signInToField, waitForAllSynced } from './field';
+import { gotoAfterSignIn, signInToField, waitForAllSynced } from './field';
 import { clerk, setupClerkTestingToken } from '@clerk/testing/playwright';
 import { expect } from '@playwright/test';
 
@@ -26,7 +26,7 @@ export async function newSupervisor(
   await setupClerkTestingToken({ page });
   await page.goto('/');
   await clerk.signIn({ page, emailAddress: email });
-  await page.goto('/dashboard');
+  await gotoAfterSignIn(page, '/dashboard');
   await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();
   return { context, page };
 }

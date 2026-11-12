@@ -25,7 +25,7 @@ export function SyncBadge() {
       tone = 'border-border text-foreground';
       break;
     case 'paused':
-      label = 'Sign in to sync';
+      label = status.pausedReason === 'no_role' ? 'No access' : 'Sign in to sync';
       tone = 'border-border text-foreground';
       break;
     case 'error':

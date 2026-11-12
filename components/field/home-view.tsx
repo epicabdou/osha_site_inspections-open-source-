@@ -10,7 +10,8 @@ import { Button } from '@/components/ui/button';
 import { InstallGuide } from './install-guide';
 import { StatusChip } from './status-chip';
 
-export function HomeView() {
+/** `canRecord`: only inspectors start inspections; the server refuses anyone else's. */
+export function HomeView({ canRecord }: { canRecord: boolean }) {
   const rows = useLiveQuery(async () => {
     const inspections = await db.inspections.orderBy('updatedAt').reverse().toArray();
     return Promise.all(
@@ -83,9 +84,18 @@ export function HomeView() {
 
       <div className="bg-background/95 border-border fixed inset-x-0 bottom-0 z-10 border-t px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <div className="mx-auto max-w-2xl">
-          <Button className="w-full text-lg" onClick={() => navigate({ view: 'new' })}>
+          <Button
+            className="w-full text-lg"
+            disabled={!canRecord}
+            onClick={() => navigate({ view: 'new' })}
+          >
             Start an inspection
           </Button>
+          {!canRecord && (
+            <p className="text-muted mt-1 text-center text-sm">
+              Only inspectors can start inspections.
+            </p>
+          )}
         </div>
       </div>
     </div>

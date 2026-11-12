@@ -170,6 +170,21 @@ describe('SyncEngine failures', () => {
     });
   });
 
+  it('pauses, without retrying, when the account has no role (403)', async () => {
+    respond(() => Response.json({ error: 'forbidden' }, { status: 403 }));
+    await engine.syncNow();
+    expect(engine.getSnapshot()).toMatchObject({ phase: 'paused', pausedReason: 'no_role' });
+    expect(engine.getSnapshot().nextRetryAt).toBeUndefined();
+    const calls = fetchMock.mock.calls.length;
+    await vi.advanceTimersByTimeAsync(5 * 60_000);
+    expect(fetchMock.mock.calls.length).toBe(calls); // no backoff loop against the server
+    // Once a role is granted, the next trigger syncs normally.
+    respond(() => Response.json(emptyPage));
+    await engine.syncNow();
+    expect(engine.getSnapshot()).toMatchObject({ phase: 'idle' });
+    expect(engine.getSnapshot().pausedReason).toBeUndefined();
+  });
+
   it('pauses, without retrying, when there is no session', async () => {
     setTokenProvider(null);
     await engine.syncNow();

@@ -1,3 +1,25 @@
+import type { Page } from '@playwright/test';
+
+/**
+ * A JPEG screenshot with unique pixels. Photos are content-addressed (by the hash of their
+ * compressed pixels), so two identical screenshots would be "the same photo" and the
+ * second upload would rightly be skipped. A random marker keeps each test's photo new.
+ */
+export async function uniqueScreenshot(page: Page, quality = 80): Promise<Buffer> {
+  const marker = `photo-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  await page.evaluate((text) => {
+    const el = document.createElement('div');
+    el.id = 'e2e-photo-marker';
+    el.textContent = text;
+    el.style.cssText =
+      'position:fixed;top:0;left:0;z-index:99999;padding:8px;background:#fff;color:#000;font:24px monospace';
+    document.body.append(el);
+  }, marker);
+  const jpeg = await page.screenshot({ type: 'jpeg', quality });
+  await page.evaluate(() => document.getElementById('e2e-photo-marker')?.remove());
+  return jpeg;
+}
+
 /**
  * Builds test JPEGs that carry EXIF GPS metadata, to prove the app strips it.
  * The base JPEG comes from a Playwright screenshot; an APP1 "Exif" segment with a GPS
