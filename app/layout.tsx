@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { ClerkProvider } from '@clerk/nextjs';
 import { DisclaimerFooter } from '@/components/ui/disclaimer';
+import { ServiceWorkerRegistration } from '@/components/ui/service-worker';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -10,6 +11,10 @@ export const metadata: Metadata = {
   },
   description:
     'An open-source, offline-first safety inspection app that shows device-to-server sync done correctly.',
+  applicationName: 'Field Inspections',
+  appleWebApp: { capable: true, title: 'Inspections', statusBarStyle: 'default' },
+  icons: { apple: '/icons/apple-touch-icon.png' },
+  formatDetection: { telephone: false },
 };
 
 export const viewport: Viewport = {
@@ -34,6 +39,7 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
         <ClerkProvider signInUrl="/sign-in" signInFallbackRedirectUrl="/">
           <div className="flex flex-1 flex-col">{children}</div>
           <DisclaimerFooter />
+          <ServiceWorkerRegistration />
         </ClerkProvider>
       </body>
     </html>

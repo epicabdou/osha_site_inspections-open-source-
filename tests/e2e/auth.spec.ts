@@ -12,7 +12,7 @@ test.describe('test users can sign in', () => {
     await page.goto('/');
     await clerk.signIn({ page, emailAddress: users!.supervisor });
     await page.goto('/dashboard');
-    await expect(page.getByTestId('dashboard-role')).toHaveText('supervisor');
+    await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();
   });
 
   test('the inspector is kept out of the dashboard', async ({ page }) => {

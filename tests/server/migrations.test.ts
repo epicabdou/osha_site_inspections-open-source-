@@ -70,7 +70,7 @@ describe('initial migration', () => {
         inspectionId: '01935c4e-8f4b-7c3a-9d2e-1a2b3c4d5e6f',
         itemId: 'base-plates',
         value: { kind: 'pass_fail_na', result: 'pass' },
-        hlc: '000001234567890:0000:device-a',
+        hlc: '000001794430000-00000-device-a',
         deviceId: 'device-a',
         authorId: 'user_inspector',
         deviceTime: new Date('2026-11-11T09:31:00.000Z'),

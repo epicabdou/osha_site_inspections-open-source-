@@ -13,15 +13,17 @@ test('the home page links to both areas and shows the disclaimer', async ({ page
   await expect(page.getByRole('contentinfo')).toHaveText(DISCLAIMER);
 });
 
-test('/field renders from its static shell and reads search params on the device', async ({
-  page,
-}) => {
-  const response = await page.goto('/field?view=inspection');
+test('/field renders from its static shell for a signed-out visitor', async ({ page }) => {
+  const response = await page.goto(
+    '/field?view=inspection&id=01935c4e-8f4b-7c3a-9d2e-1a2b3c4d5e6f',
+  );
   // Served straight from the prerendered page, with no auth redirect in between.
   expect(response?.status()).toBe(200);
   expect(response?.request().redirectedFrom()).toBeNull();
   await expect(page.getByRole('heading', { name: 'Inspections' })).toBeVisible();
-  await expect(page.getByTestId('field-view')).toHaveText('inspection');
+  await expect(
+    page.getByText('Sign in once with a connection to use the app offline.'),
+  ).toBeVisible();
   await expect(page.getByRole('contentinfo')).toHaveText(DISCLAIMER);
 });
 

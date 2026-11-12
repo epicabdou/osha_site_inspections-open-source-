@@ -41,15 +41,16 @@ box works with none.
 
 ## Status
 
-| Piece                                 | Milestone | State       |
-| ------------------------------------- | --------- | ----------- |
-| Static `/field` shell, `ensureStatic` | M0        | Done        |
-| Clerk, `proxy.ts`, role checks        | M0        | Done        |
-| Postgres schema and first migration   | M0        | Done        |
-| Dexie, inspections, answers, Serwist  | M1        | Not started |
-| Outbox, push, pull, HLC               | M2        | Not started |
-| Photos                                | M3        | Not started |
-| Dashboard                             | M4        | Not started |
+| Piece                                 | Milestone | State |
+| ------------------------------------- | --------- | ----- |
+| Static `/field` shell, `ensureStatic` | M0        | Done  |
+| Clerk, `proxy.ts`, role checks        | M0        | Done  |
+| Postgres schema and first migration   | M0        | Done  |
+| Dexie, inspections, answers, Serwist  | M1        | Done  |
+| Outbox, push, pull, HLC               | M2        | Done  |
+| Photos                                | M3        | Done  |
+| Dashboard                             | M4        | Done  |
+| Chaos panel, seed data, a11y pass     | M5        | Done  |
 
 ## Why /field is one static route
 
@@ -95,16 +96,82 @@ both on every pull request.
 The `server-only` and `client-only` packages make a wrong import fail the build; ESLint
 `no-restricted-imports` rules in `eslint.config.mjs` catch it earlier, in the editor.
 
+## Photos
+
+Photos travel separately from answers. The answer syncs in seconds and names the photo by the
+SHA-256 of its compressed bytes; the photo follows when bandwidth allows.
+
+1. **Capture** with `<input type="file" accept="image/*" capture="environment">` (or the library).
+2. **Compress** on the device (`lib/photos/compress.ts`): decode with EXIF orientation applied,
+   longest side at most 1600 px, JPEG quality 0.8. Re-encoding drops all metadata, GPS included.
+3. **Hash** the compressed bytes before any Dexie transaction opens.
+4. **Store** the photo row, the answer event that references the hash, and its outbox entry in one
+   transaction (`lib/field/photos.ts`).
+5. **Upload** after each sync cycle, two at a time (`lib/photos/upload-queue.ts`):
+   `POST /api/photos/upload` returns a client token scoped to `inspections/<id>/<hash>.jpg`, the
+   device `PUT`s straight to the private Vercel Blob store ("already exists" counts as success),
+   then `POST /api/photos/confirm` records the photo after the server checks storage has a JPEG
+   under 5 MB. Retries use the sync backoff; a reload resumes the queue from Dexie.
+6. **Keep** the local copy until it is uploaded and its inspection is closed, or for 30 days.
+
+The store is private: `GET /api/photos/<hash>` streams a photo to its inspector or a supervisor.
+
+## The supervisor dashboard
+
+`/dashboard` is online-only and server-rendered. Every page re-checks the supervisor role
+(`requireSupervisor()`) and reads Postgres through `server/dashboard/queries.ts`.
+
+- **Overview** (`app/dashboard/page.tsx`): open critical findings first, then inspections newest
+  first with site, checklist, inspector, status, critical badge and last sync time. Filters
+  (status, site, checklist, date range) live in the URL.
+- **Inspection detail** (`app/dashboard/inspections/[id]/page.tsx`): every section with the current
+  answer from the same reducer the device uses, each item's full history (device time, server time,
+  device, author), conflict flags, photos in a lightbox, and "Photo pending upload from device"
+  for a photo the device has not uploaded yet.
+- **Actions** (`app/dashboard/actions.ts`): cancel an inspection (reason required) and close a
+  corrective action (note required). Server Actions, validated with Zod, re-checking the role, and
+  bumping `server_seq` under the advisory lock so devices learn of the change on their next pull.
+- **Names** come from Clerk at render time; the database stores only user ids.
+- **Times** are rendered in the viewer's locale and time zone by a small client component.
+- A client component calls `router.refresh()` every 15 seconds while visible.
+
+## Demo chaos panel
+
+`components/field/chaos-panel.tsx`, shown with `?demo=1` or `NEXT_PUBLIC_DEMO_MODE=true`. Its
+settings live in Dexie `meta` and act in exactly two places: the one fetch wrapper
+(`throughChaos()` in `lib/sync/api.ts`: force offline, latency, drop rate) and the device clock
+(`lib/sync/clock.ts`: skew, which also feeds the HLC). A live table shows the outbox and photo
+queue; buttons sync now, export local data as JSON, and wipe the device database.
+
 ## Service worker strategy
 
-Planned for M1 (Serwist):
+`app/sw.ts`, bundled by `serwist build` after `next build` (see `docs/DECISIONS.md` #16):
 
-- Precache the build assets and the `/field` page.
+- Precache the build assets and the `/field` page (by URL, revisioned with the build id).
 - Answer every navigation to `/field`, with any search params, with the cached `/field` page.
 - Network-only for `/api/*` and `/dashboard*`; never cache their responses.
 - Stale-while-revalidate for Clerk's browser script; the app must work if it fails to load.
-- Register from a client component with `updateViaCache: 'none'`. When a new version is waiting,
-  show an "Update available" toast; never activate it automatically while an inspection is open.
+- Registered from a client component (`components/ui/service-worker.tsx`) with
+  `updateViaCache: 'none'`. When a new version is waiting, an "Update available" toast appears; the
+  new worker activates only when the user taps "Update", never on its own, so an open inspection is
+  never swapped out.
+
+## The field app on the device
+
+- **Data.** `lib/db.ts` (Dexie): templates, inspections, answer events, the outbox, photos,
+  corrective actions and `meta` (device id, last user, pull cursor, HLC, demo settings).
+- **Writes.** `lib/field/actions.ts` (`createInspection`, `recordAnswer`, `submitInspection`) and
+  `lib/field/photos.ts`. Each writes its data and its outbox entry in one Dexie transaction.
+  Photos are compressed and hashed before the transaction opens.
+- **Reads.** Components use `useLiveQuery`; the current value of every item comes from
+  `lib/answers/reduce.ts`, failures and submit checks from `lib/answers/evaluate.ts`.
+- **Who is signed in.** `components/field/clerk-bridge.tsx` saves `{ userId, displayName, role }`
+  to `meta.lastUser` after a sign-in and hands the sync engine a token provider. The app runs from
+  `lastUser` whether or not Clerk loaded. A different user signing in while another user's work is
+  unsynced is blocked until that work is exported or deliberately deleted; sign-out with unsynced
+  work asks first, then deletes the device database.
+- **Navigation.** `lib/field/navigation.ts`: `?view=home|new|inspection|settings`, `id`,
+  `section`.
 
 ## Repository layout
 

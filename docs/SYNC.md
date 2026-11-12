@@ -1,8 +1,8 @@
 # Sync
 
-> **Status:** design. The Postgres schema, the shared Zod schemas and the rejection reasons exist
-> (M0); the outbox, push, pull and clock land in M2, when this document is updated to match the
-> code.
+> **Status:** implemented (M2). Code: `lib/sync/` on the device, `server/sync/` on the server,
+> shared shapes in `lib/schemas/sync.ts`. Proved by the property tests and the device ↔ server
+> round trip described in `docs/TESTING.md`.
 
 The device is the source of truth for the inspector's work; the server decides what is accepted.
 
@@ -28,6 +28,8 @@ Each outbox entry is `{ mutationId (UUIDv7), kind, payload, hlc }`.
 
 ## Push: `POST /api/sync/push`
 
+Server: `server/sync/push.ts`. Device: `lib/sync/outbox.ts` and `lib/sync/engine.ts`.
+
 - Body: `{ deviceId, mutations: Mutation[] }`, at most 100 per request, validated with Zod.
 - Mutations are processed in order, each inside its own savepoint, and each result is recorded in
   `processed_mutations`. A `mutationId` seen before returns its stored result unchanged.
@@ -36,6 +38,20 @@ Each outbox entry is `{ mutationId (UUIDv7), kind, payload, hlc }`.
   A network error or 5xx is temporary: the device retries with backoff.
 - If the device clock is more than 5 minutes from `serverTime`, the device shows a quiet "device
   clock looks wrong" notice. Ordering stays correct either way (see the clock below).
+
+Details that matter:
+
+- **One transaction per batch.** It takes the `server_seq` advisory lock first; each mutation then
+  runs in a savepoint, so a rejection rolls back only that mutation.
+- **Duplicates.** A mutation id already in `processed_mutations` is not applied again. If it had
+  been accepted the result is `duplicate`; if it had been rejected, the same rejection comes back.
+- **The server owns identity.** `createdBy` and `authorId` must equal the session user
+  (`not_owner` otherwise), `hasCriticalFailure` is computed from accepted events, and a role in
+  the body is meaningless (the strict schema rejects unknown keys).
+- **Unexpected errors** (a bug, a lost database connection) abort the whole batch and record
+  nothing, so the device retries it; only expected refusals are final.
+- **A missing result** (the server never omits one, but the device does not assume it) puts the
+  entry back in the queue and the engine backs off instead of looping.
 
 ### Rejection reasons
 
@@ -89,6 +105,10 @@ Stored in Dexie `meta` as `(wallMs, counter)`.
   one it has seen.
 - **Encoding:** a zero-padded string ending in the `deviceId`, so plain string order is clock order.
 - The chaos panel's clock skew is added to `now` here.
+- Format: `<wallMs, 15 digits>-<counter, 5 digits>-<deviceId>`, e.g.
+  `001794430000123-00042-01935c4e-…`. A counter overflow borrows the next millisecond.
+- Pull merges only the latest remote clock of each page (`lib/sync/clock.ts`), inside the same
+  Dexie transaction that stores the page.
 
 The current value of an item is the event with the highest `(hlc, deviceId)`.
 

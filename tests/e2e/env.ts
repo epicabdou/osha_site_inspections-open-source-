@@ -10,3 +10,8 @@ export function testUsers(): { inspector: string; supervisor: string } | null {
   if (!hasClerkKeys() || !inspector || !supervisor) return null;
   return { inspector, supervisor };
 }
+
+/** True when the full stack is available: Clerk test users and the e2e database. */
+export function hasFullStack(): boolean {
+  return testUsers() !== null && Boolean(process.env.E2E_DATABASE_URL);
+}
