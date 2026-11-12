@@ -126,6 +126,29 @@ describe('confirmUpload', () => {
   });
 });
 
+describe('the same photo on a second inspection', () => {
+  it('is "exists" on upload and confirms without a second copy in storage', async () => {
+    storage.stored.set(`inspections/${inspectionId}/${HASH}.jpg`, {
+      contentType: 'image/jpeg',
+      size: 10,
+    });
+    await confirmUpload(t.db, inspector, { inspectionId, itemId: 'overview-photo', hash: HASH });
+    const second = (await insertInspection(t.db, { createdBy: inspector.userId })).id;
+    expect(await requestUpload(t.db, inspector, { ...request(), inspectionId: second })).toEqual({
+      status: 'exists',
+    });
+    // Nothing is stored under the second inspection's path, and that is fine.
+    expect(
+      await confirmUpload(t.db, inspector, {
+        inspectionId: second,
+        itemId: 'overview-photo',
+        hash: HASH,
+      }),
+    ).toEqual({ status: 'confirmed' });
+    expect(await t.db.select().from(photos)).toHaveLength(1);
+  });
+});
+
 describe('findViewablePhoto', () => {
   it('lets the owner and supervisors view a photo, nobody else', async () => {
     storage.stored.set(`inspections/${inspectionId}/${HASH}.jpg`, {

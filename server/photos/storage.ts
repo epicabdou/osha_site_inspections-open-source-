@@ -32,7 +32,9 @@ export async function statPhoto(pathname: string) {
   try {
     return await head(pathname, { token: readWriteToken() });
   } catch (error) {
-    if ((error as { name?: string }).name === 'BlobNotFoundError') return null;
+    // A missing object is an expected answer, not a server error, whatever the SDK calls it.
+    const { name = '', message = '' } = (error ?? {}) as { name?: string; message?: string };
+    if (name === 'BlobNotFoundError' || /not found|does not exist/i.test(message)) return null;
     throw error;
   }
 }

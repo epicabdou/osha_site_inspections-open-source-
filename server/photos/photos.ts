@@ -64,6 +64,14 @@ export async function requestUpload(
 export async function confirmUpload(db: Db, user: ApiUser, request: PhotoConfirmRequest) {
   if (user.role !== 'inspector') throw new PhotoRequestError(403, 'forbidden');
   await assertCanAccess(db, user, request.inspectionId, true);
+  // Photos are content-addressed: the same bytes (a library photo reused on a second
+  // inspection, say) are stored and recorded once, under the first inspection's path.
+  // The upload step already answered "exists" for them, so confirm them as they are.
+  const [existing] = await db
+    .select({ hash: photos.hash })
+    .from(photos)
+    .where(eq(photos.hash, request.hash));
+  if (existing) return { status: 'confirmed' as const };
   const pathname = photoPathname(request.inspectionId, request.hash);
   const stored = await statPhoto(pathname);
   if (!stored) throw new PhotoRequestError(409, 'not_uploaded');
