@@ -19,6 +19,7 @@ Records are never deleted; a reversed decision gets a new record that supersedes
 | 12  | [Every synced table carries `server_seq`, templates included](#12-server-seq) | Implemented (M0)  |
 | 13  | [Clerk does not run on /field at all](#13-proxy-skips-field)                  | Implemented (M0)  |
 | 14  | [Tooling details](#14-tooling)                                                | Implemented (M0)  |
+| 15  | [Hosting setup: migrations run in the Vercel build](#15-hosting-setup)        | Implemented (M0)  |
 
 ---
 
@@ -215,3 +216,26 @@ session on the server; the browser SDK and `/api/*` handle auth.
 - **`E2E_INSPECTOR_EMAIL` and `E2E_SUPERVISOR_EMAIL`** are test-only variables, documented in
   `.env.example`. Playwright signs users in with Clerk testing tokens, so no passwords are stored.
 - **Postgres enums** for `inspection_status` and `corrective_action_status`, mirroring the Zod enums.
+
+## 15. Hosting setup
+
+**Context.** The demo runs on Vercel with Neon from the Vercel Marketplace. Preview deployments
+may get their own Neon branch, and every environment must have the committed schema before new
+code serves requests.
+
+**Decision.**
+
+- `vercel.json` sets the build command to `pnpm db:migrate && pnpm build`. Migrations are
+  idempotent (drizzle-kit records applied ones), so each deployment brings its database up to
+  date, then builds. A failed migration fails the deployment instead of serving code against the
+  wrong schema.
+- `pnpm db:migrate` prefers `DATABASE_URL_UNPOOLED` (a direct connection) for DDL; the app uses the
+  pooled `DATABASE_URL`.
+- Neon: free plan, region `iad1` (next to Vercel's default function region), Neon Auth off (Clerk
+  handles identity, and a second user store would collect personal data for nothing).
+- The Vercel Blob store is created in M3, when photo access (public or private) is decided with the
+  upload code in front of us.
+
+**Consequences.** Schema changes ship with the code that needs them. Migrations must stay
+backward-compatible with the previous deployment while it drains (add columns before using them;
+remove them a release later).

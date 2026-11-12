@@ -25,7 +25,7 @@ if (!existsSync(manifestPath)) {
   fail(`${manifestPath} not found. Run \`next build\` first.`);
 }
 
-/** @type {{ routes: Record<string, { compute?: string, initialRevalidateSeconds?: number | false }> }} */
+/** @type {{ routes: Record<string, { compute?: string, initialRevalidateSeconds?: number | false, htmlSize?: number }> }} */
 const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
 
 for (const route of STATIC_ROUTES) {
@@ -39,9 +39,11 @@ for (const route of STATIC_ROUTES) {
   if (entry.initialRevalidateSeconds !== false) {
     fail(`${route} revalidates (${entry.initialRevalidateSeconds}s); it must be fully static.`);
   }
+  // `next start` serves the HTML from .next/server/app. On Vercel the build adapter
+  // moves it into its own output, so fall back to the size Next recorded for it.
   const html = join(distDir, 'server', 'app', `${route.slice(1)}.html`);
-  if (!existsSync(html)) {
-    fail(`${route} has no prerendered HTML at ${html}.`);
+  if (!existsSync(html) && !(typeof entry.htmlSize === 'number' && entry.htmlSize > 0)) {
+    fail(`${route} has no prerendered HTML (looked for ${html} and a recorded htmlSize).`);
   }
   console.info(`✓ ${route} is fully static`);
 }

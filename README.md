@@ -129,7 +129,8 @@ end-to-end tests. To sign in by hand, use the address and the code `424242`.
 pnpm db:migrate
 ```
 
-applies the committed migrations in `server/db/migrations` to `DATABASE_URL`. After changing
+applies the committed migrations in `server/db/migrations` to `DATABASE_URL` (or
+`DATABASE_URL_UNPOOLED` when set). After changing
 `server/db/schema.ts`, run `pnpm db:generate` and commit the new migration; CI fails if they
 drift apart. Seed data (`pnpm db:seed`) arrives in M5.
 
@@ -169,6 +170,16 @@ and then Playwright. Playwright traces are uploaded when a test fails.
 The end-to-end job needs these **repository secrets**: `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`,
 `CLERK_SECRET_KEY`, `E2E_INSPECTOR_EMAIL`, `E2E_SUPERVISOR_EMAIL`. Pull requests from forks run
 every check except end-to-end.
+
+## Deploying to Vercel
+
+1. Import the repository in Vercel (framework: Next.js; `vercel.json` sets the build command).
+2. Add **Neon** from the Vercel Marketplace (Storage → Neon, free plan) and connect it to the
+   project; it sets `DATABASE_URL` and `DATABASE_URL_UNPOOLED`.
+3. Add `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY` and `NEXT_PUBLIC_DEMO_MODE` for
+   Production, Preview and Development.
+4. Every deployment runs `pnpm db:migrate && pnpm build`, so the committed migrations are applied
+   before the new code goes live, and every pull request gets a preview deployment.
 
 ## Known limitations
 

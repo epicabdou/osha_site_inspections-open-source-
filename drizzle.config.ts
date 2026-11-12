@@ -10,7 +10,8 @@ export default defineConfig({
   out: './server/db/migrations',
   dbCredentials: {
     // Only `migrate` and `studio` connect; `generate` works without a database.
-    url: process.env.DATABASE_URL ?? '',
+    // Prefer the direct (unpooled) connection for DDL; Neon on Vercel provides both.
+    url: process.env.DATABASE_URL_UNPOOLED ?? process.env.DATABASE_URL ?? '',
   },
   strict: true,
   verbose: true,
