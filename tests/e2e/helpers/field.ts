@@ -1,12 +1,29 @@
 import { clerk, setupClerkTestingToken } from '@clerk/testing/playwright';
 import { expect, type Page } from '@playwright/test';
 
+/**
+ * Navigates right after a sign-in. Clerk may still be redirecting (to the sign-in
+ * fallback URL), which interrupts a navigation started at the same moment; wait for it to
+ * settle and try again.
+ */
+export async function gotoAfterSignIn(page: Page, url: string) {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      await page.goto(url);
+      return;
+    } catch (error) {
+      if (attempt >= 2 || !/interrupted by another navigation/.test(String(error))) throw error;
+      await page.waitForLoadState('load');
+    }
+  }
+}
+
 /** Signs in through Clerk's testing helpers, then opens the field app online. */
 export async function signInToField(page: Page, emailAddress: string) {
   await setupClerkTestingToken({ page });
   await page.goto('/');
   await clerk.signIn({ page, emailAddress });
-  await page.goto('/field');
+  await gotoAfterSignIn(page, '/field');
   await expect(page.getByRole('heading', { name: 'Your inspections' })).toBeVisible();
 }
 
